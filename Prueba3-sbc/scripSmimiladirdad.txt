@@ -1,0 +1,26 @@
+#scrip para ver los colores mas usados
+
+
+MATCH (:Flag)-[c1:CONTAINS]->(:Color)
+WITH sum(c1.weight) as total
+MATCH (:Flag)-[c2:CONTAINS]->(cl:Color)
+WITH cl.name as colorName, sum(c2.weight) as colorUsed, total
+RETURN colorName, colorUsed * 100 / total as percentage
+ORDER BY percentage DESC
+LIMIT 10
+#scrips para ver las banderas con similaridad
+
+MATCH (item:`Flag`), (category:`Color`)
+OPTIONAL MATCH (item:`Flag`)-[rel:`CONTAINS`]->(category:`Color`)
+WITH {item:id(item), weights: collect(coalesce(rel.`weight`, gds.util.NaN()))} as userData
+WITH collect(userData) as data
+WITH $config AS config, data
+WITH config { .*, data: data} as config
+
+CALL gds.alpha.similarity.cosine.stream(config)
+
+YIELD item1, item2, similarity
+RE-TURN gds.util.asNode(item1) AS from, gds.util.asNode(item2) AS to, similarity
+ORDER BY similarity DESC
+LIMIT toInteger($limit)
+
